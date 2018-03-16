@@ -31,6 +31,7 @@ void setup()
 
   if (ether.begin(sizeof Ethernet::buffer, mac, 10) == 0)
     Serial.println(F("Failed to access Ethernet controller"));
+
   Serial.println(F("Ok\n"));
   // Serial.println(F(mac));
   //  pinMode(3, OUTPUT);
@@ -39,6 +40,10 @@ void setup()
   //Ethernet.begin(mac,myIP);
   //ether.hisport = 443;
   ether.staticSetup(ip, gateway, dns, subnet);
+  ether.printIp("My IP: ", ether.myip);
+  ether.printIp("Netmask: ", ether.netmask);
+  ether.printIp("GW IP: ", ether.gwip);
+  ether.printIp("DNS IP: ", ether.dnsip);
 }
 void loop()
 {
@@ -48,56 +53,76 @@ void loop()
   if (pos)  // check if valid tcp data is received
   {
     char* data = (char *) Ethernet::buffer + pos;
-
-
-
-
-    if (strstr(data, "POST"))
+    if (strstr(data, "GET /Setup"))
     {
-
-      if (strstr(data, "led3=")) {
-        led = 1 ;
-        digitalWrite(3, HIGH);
-      }
-      else {
-        led = 0;  //Serial.println(ether.findKeyVal( data+1, led, 10, "led3"));
-        digitalWrite(3, LOW);
-      }
-
-      Serial.println(data);
-      Serial.println("1");
-      Serial.println(led);
-      Serial.println("2");
+      ether.httpServerReply(setupPage()); // send web page data
     }
-    ether.httpServerReply(homePage()); // send web page data
+    else
+    { if (strstr(data, "POST"))
+      {
+
+        if (strstr(data, "led3=on")) {
+          led = 1 ;
+          digitalWrite(3, HIGH);
+        }
+        else {
+          led = 0;  //Serial.println(ether.findKeyVal( data+1, led, 10, "led3"));
+          digitalWrite(3, LOW);
+        }
+
+        //      Serial.println(data);
+        Serial.println(led);
+      }
+
+      ether.httpServerReply(homePage()); // send web page data
+    }
+    Serial.println(data);
+
   }
 }
+
+static word setupPage() {
+  bfill.emit_p(PSTR(
+                 "$F"
+                 "\r\n"
+                 "<html>"
+                 "<title>Server - первый</title>"
+                 "<body>"
+                 "<h2>Страничка настройки</h2>"
+                 "</body>"
+                 "</html>"
+               ),
+               okHeader);
+  return bfill.position();
+}
+
 static word homePage() {
   long t = millis() / 1000;
   word h = t / 3600;
   byte m = (t / 60) % 60;
   byte s = t % 60;
   bfill = ether.tcpOffset();
-  // Serial.println((String)ether.hisip);
-  ether.printIp("Server: ", ether.myip);
+
+  //ether.printIp("Server: ", ether.myip);
 
   bfill.emit_p(PSTR(
                  "$F"
                  "\r\n"
-                     "<meta http-equiv='refresh' content='5'/>"
-                 //   "<meta charset='utf-8'/>"
+                 //    "<meta http-equiv='refresh' content='5'/>"
                  "<html>"
                  "<title>Server - первый</title>"
                  "<body>"
-                 "<h1>Время работы $D$D:$D$D:$D$D</h1>"),
+                 "<h1>Время работы $D$D:$D$D:$D$D</h1>"
+                 "<a href='/Setup'>Регистрация</a> "
+               ),
                okHeader,
                h / 10, h % 10, m / 10, m % 10, s / 10, s % 10);
   bfill.emit_p(PSTR(
-                 "<form action='' method='post'>"
+                 "<form action='' method='POST'>"
                  "<p><b>LED control</b></p>"
                  //"<input type='radio' name='led' value='on'>Включить<Br>"
                  //"<input type='radio' name='led' value='off'>Выключить</p>"u
-                 ));
+               ));
 
   bfill.emit_p(PSTR("<input type='checkbox' name='led3' onClick='submit()'"));
 
@@ -107,13 +132,12 @@ static word homePage() {
     bfill.emit_p(PSTR(">On<br>"));
 
   bfill.emit_p(PSTR(//"<p><input type='submit' value='Обновить'></p>"
-                    "</form>"
-                    "</body>"
-                    "</html>"
-                   ));
+                 "</form>"
+                 "</body>"
+                 "</html>"
+               ));
 
   return bfill.position();
 }
-
 
 
