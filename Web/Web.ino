@@ -21,29 +21,29 @@ const char okError[] PROGMEM =
   //"Content-Type: text/html; charset=utf-8\r\n"
   //"Pragma: no-cache\r\n\r\n"
   ;
-  
+
 const char http_Found[] PROGMEM =
   "HTTP/1.0 302 Found\r\n"
   "Location: /\r\n\r\n"
   ;
-const char http_Button[] PROGMEM = 
-  "<input type='submit' name='setup' value='setup'>" 
-  "<input type='submit' name='main' value='main'><br>\r\n"//\r\n" 
+const char http_Button[] PROGMEM =
+  "<input type='submit' name='setup' value='setup'>"
+  "<input type='submit' name='main' value='main'><br>\r\n"//\r\n"
   ;
-const char http_Header[] PROGMEM = 
-                 "<html>"
-                 "<head>"
-                 "<link rel='icon' type='image/ico' href='https://www.arduino.cc/favicon.ico' type='image/x-icon' />"
-                 "<title>Server - первый</title>"
-                 "</head>"
-                 "<body>"
-;
-const char http_End[] PROGMEM = 
-                 "</form>"
-                 "</body>"
-                 "</html>"
-;                 
-                
+const char http_Header[] PROGMEM =
+  "<html>"
+  "<head>"
+  "<link rel='icon' type='image/ico' href='https://www.arduino.cc/favicon.ico' type='image/x-icon' />"
+  "<title>Server - первый</title>"
+  "</head>"
+  "<body>"
+  ;
+const char http_End[] PROGMEM =
+  "</form>"
+  "</body>"
+  "</html>"
+  ;
+
 byte Ethernet::buffer[850];
 
 BufferFiller bfill;
@@ -79,12 +79,12 @@ void loop()
   if (pos)  // check if valid tcp data is received
   {
     char* data = (char *) Ethernet::buffer + pos;
-    
+
 //    Serial.println(data);
 
- if (strstr(data, "GET /favicon.ico"))
+    if (strstr(data, "GET /favicon.ico"))
     {
-     // Serial.println("GET ///////////////");
+      // Serial.println("GET ///////////////");
     }
     else if (strstr(data, "GET / HTTP"))
     {
@@ -92,8 +92,8 @@ void loop()
     }
     else if (strstr(data, "GET /"))
     {
-//     Serial.println(data);
-     ether.httpServerReply(errorPage());//homePage()); // send web page data
+      //     Serial.println(data);
+      ether.httpServerReply(errorPage());//homePage()); // send web page data
     }
     else if (strstr(data, "setup=setup"))
     {
@@ -106,22 +106,28 @@ void loop()
       ether.httpServerReply(homePage());//setupPage()); // send web page data
     }
     else
+
     { if (strstr(data, "POST /"))
       {
-
-        if (strstr(data, "led3=on")) {
-          led = 1 ;
-          digitalWrite(3, HIGH);
-        }
-        else {
-          led = 0;  //Serial.println(ether.findKeyVal( data+1, led, 10, "led3"));
-          digitalWrite(3, LOW);
+        if (strstr(data, "save=save")) {
+          if (strstr(data, "led3=on")) {
+            led = 1;
+            digitalWrite(3, HIGH);
+          }
+          else {
+            led = 0;
+            digitalWrite(3, LOW);
+            while ( digitalRead(3) != LOW)//без нагрузки долго гаснет
+              delay(10);
+            Serial.println("погас");
+          }
+          
         }
 
         //      Serial.println(data);
         Serial.println(led);
       }
-  //   Serial.println(data);
+      //   Serial.println(data);
 
       ether.httpServerReply(homePage()); // send web page data
     }
@@ -139,9 +145,9 @@ static word setupPage() {
                  "$F"
                  "$F"
                ),
-               okHeader,http_Header, http_Button, http_End);//http_Found);//
+               okHeader, http_Header, http_Button, http_End); //http_Found);//
 
- 
+
   return bfill.position();
 }
 static word errorPage() {
@@ -156,6 +162,7 @@ static word homePage() {
   word h = t / 3600;
   byte m = (t / 60) % 60;
   byte s = t % 60;
+  int an;
   bfill = ether.tcpOffset();
 
   //ether.printIp("Server: ", ether.myip);
@@ -166,28 +173,29 @@ static word homePage() {
                  "<h1>Время работы $D$D:$D$D:$D$D</h1>"
                  "<form action='' method='post'>"
                  "$F"
-                 "<a href='/Setup'>Настройка</a> "
                ),
-               okHeader,http_Header,
+               okHeader, http_Header,
                h / 10, h % 10, m / 10, m % 10, s / 10, s % 10
-               ,http_Button
-               );
+               , http_Button
+              );
   bfill.emit_p(PSTR(
-                               
+
                  "<p><b>LED control</b></p>"
 
                ));
-
-  bfill.emit_p(PSTR("<input type='checkbox' name='led3' "));//onClick='submit()'
+  an = analogRead(A0);
+  Serial.println(an);
+  bfill.emit_p(PSTR("<input type='text' value ='$D,$D' size='5' disabled> <input type='checkbox' name='led3' ")
+        ,an/10,an%10);
 
   if (digitalRead(3) == HIGH)
     bfill.emit_p(PSTR(" checked>Off<br>"));
   else
     bfill.emit_p(PSTR(">On<br>"));
 
-  bfill.emit_p(PSTR(//"<p><input type='submit' value='Обновить'></p>"
-                 "$F"
-               ), http_End);
+  bfill.emit_p(PSTR("<p><input type='submit' name='save' value='save'></p>"
+                    "$F"
+                   ), http_End);
 
   return bfill.position();
 }
