@@ -28,7 +28,9 @@ const char http_Found[] PROGMEM =
   ;
 const char http_Button[] PROGMEM =
   "<input type='submit' name='setup' value='setup'>"
-  "<input type='submit' name='main' value='main'><br>\r\n"//\r\n"
+  "<input type='submit' name='main' value='main'>"
+  "<input type='submit' name='svg' value='svg'>"
+  "<br>\r\n"
   ;
 const char http_Header[] PROGMEM =
   "<html>"
@@ -44,7 +46,7 @@ const char http_End[] PROGMEM =
   "</html>"
   ;
 
-byte Ethernet::buffer[850];
+byte Ethernet::buffer[1200];
 
 BufferFiller bfill;
 
@@ -80,7 +82,7 @@ void loop()
   {
     char* data = (char *) Ethernet::buffer + pos;
 
-//    Serial.println(data);
+   // Serial.println(data);
 
     if (strstr(data, "GET /favicon.ico"))
     {
@@ -94,6 +96,11 @@ void loop()
     {
       //     Serial.println(data);
       ether.httpServerReply(errorPage());//homePage()); // send web page data
+    }
+    else if (strstr(data, "svg=svg"))
+    {
+      Serial.println(data);
+      ether.httpServerReply(chartPage());//homePage()); // send web page data
     }
     else if (strstr(data, "setup=setup"))
     {
@@ -121,7 +128,7 @@ void loop()
               delay(10);
             Serial.println("погас");
           }
-          
+
         }
 
         //      Serial.println(data);
@@ -134,7 +141,61 @@ void loop()
 
   }
 }
+static word chartPage() {
+  bfill = ether.tcpOffset();
+  bfill.emit_p(PSTR(
+                 "$F"
+                 "<html>"
+                 "<head>"
+                 "<link rel='icon' type='image/ico' href='https://www.arduino.cc/favicon.ico' type='image/x-icon' />"
+                 "<meta charset='utf-8'>"
+                 "<script type='text/javascript' src='https://www.gstatic.com/charts/loader.js'></script>"
+                 "<script type='text/javascript'>"
+                 "google.charts.load('current', {packages:['corechart']});"
+                 "google.charts.setOnLoadCallback(drawChart);"
+                 "function drawChart() {"
+                 "var data = google.visualization.arrayToDataTable"
+                 "([['X', 'дом', 'улица', 'чердак', 'бытовка'],"
+                 "[20, 8, 8, 8, 8],"
+                 "[25, 8.5, 4, 5, 6],"
+                 "[35, -7, 5, 6, 7],"
+                 "[45, 7, 6, 7, 8],"
+                 "[55, 7, 7, 8, 9],"
+                 "[70, 7, 8, 9, 20]"
+                 "]);"
+                 "var options = {"
+                 "};"
+                 "var chart = new google.visualization.LineChart(document.getElementById('chart_div'));"
+                 "chart.draw(data, options);"
+                 "}"
+                 "</script>"
+                 "</head>"
+                 "<body>"
+                 "<form action='' method='post'>"
+                 "<h1>Страничка графика</h1>"
+                 "$F"
+                 "<div id='chart_div' style='width: 900px; height: 500px;'></div>"
+                 "$F"
+               ), okHeader, http_Button, http_End);
+  return bfill.position();
+}
 
+static word svgPage() {
+  bfill = ether.tcpOffset();
+  bfill.emit_p(PSTR(
+                 "$F"
+                 "$F"
+                 "<form action='' method='post'>"
+                 "<h1>Страничка SVG</h1>"
+                 "$F"
+                 "<svg><line x1='0' y1='0' x2='100' y2='100' stroke-width='2' stroke='rgb(0,0,0)'/></svg>"
+                 "$F"
+               ),
+               okHeader, http_Header, http_Button, http_End); //http_Found);//
+
+
+  return bfill.position();
+}
 static word setupPage() {
   bfill = ether.tcpOffset();
   bfill.emit_p(PSTR(
@@ -185,8 +246,9 @@ static word homePage() {
                ));
   an = analogRead(A0);
   Serial.println(an);
-  bfill.emit_p(PSTR("<input type='text' value ='$D,$D' size='5' disabled> <input type='checkbox' name='led3' ")
-        ,an/10,an%10);
+  bfill.emit_p(PSTR("<input type='text' value ='$D,$D' size='5' disabled>"
+                    "<input type='checkbox' name='led3' ")
+               , an / 10, an % 10);
 
   if (digitalRead(3) == HIGH)
     bfill.emit_p(PSTR(" checked>Off<br>"));
