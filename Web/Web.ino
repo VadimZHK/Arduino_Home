@@ -1,5 +1,5 @@
 #include <EtherCard.h>
-#include <EEPROM.h>
+//#include <EEPROM.h>
 #include <OneWire.h>
 
 
@@ -9,8 +9,9 @@ byte ip[] = { 192, 168, 127, 55 };
 byte gateway[] = { 191, 168, 127, 232 };
 byte dns[] = { 8, 8, 8, 8 };
 int led;
-String vData;
-
+char element[30] = ",[";
+char x[5];
+float fl;
 
 const char okHeader[] PROGMEM =
   "HTTP/1.0 200 OK\r\n"
@@ -26,7 +27,7 @@ const char okError[] PROGMEM =
   "Location: /\r\n\r\n"
   ;*/
 const char http_Button[] PROGMEM =
- // "<input type='submit' name='setup' value='setup'>"
+  // "<input type='submit' name='setup' value='setup'>"
   "<input type='submit' name='main' value='main'>"
   "<input type='submit' name='svg' value='svg'>"
   "<br>\r\n"
@@ -34,7 +35,7 @@ const char http_Button[] PROGMEM =
 const char http_Header[] PROGMEM =
   "<html>"
   "<head>"
-  "<link rel='icon' type='image/ico' href='https://www.arduino.cc/favicon.ico' type='image/x-icon' />"
+  "<link rel='icon' type='image/ico' href='https://www.arduino.cc/favicon.ico' type='image/x-icon'/>"
   "<title>Server - первый</title>"
   "</head>"
   "<body>"
@@ -54,10 +55,12 @@ struct MyTemp {
   int troof;
   int tbuild;
 } my_temp;
-byte aLen = 4;
-MyTemp arrayTemp[4];
 
-byte Ethernet::buffer[1100];
+MyTemp arrayTemp[8];
+byte aLen;
+//char element[30] = "[110,-44.2,-40.9,-40.4,-38.8]";
+
+byte Ethernet::buffer[1200];
 
 BufferFiller bfill;
 
@@ -85,40 +88,42 @@ void setup()
   ether.printIp("Netmask: ", ether.netmask);
   ether.printIp("GW IP: ", ether.gwip);
   ether.printIp("DNS IP: ", ether.dnsip);
-  Serial.println(sizeof(my_temp));
-  EEPROM.get(0, my_temp);
+ // Serial.println(sizeof(my_temp));
+  //EEPROM.get(0, my_temp);
 
-  Serial.println(my_temp.tdom);
-  Serial.println(my_temp.tdvor);
-  Serial.println(my_temp.troof);
-  Serial.println(my_temp.tbuild);
+  //Serial.println(my_temp.tdom);
+  //Serial.println(my_temp.tdvor);
+  //Serial.println(my_temp.troof);
+  //Serial.println(my_temp.tbuild);
   // my_temp.tdom =151;
   // my_temp.tdvor =155;
-  vData = String("");
+  //vData = String("");
   vOffset = 0;
   ///EEPROM.put(0, my_temp);
   //storeTemp();
   //readStore();
-  //Serial.println(vData);
-
+//  Serial.println("Size");
+//  Serial.println(sizeof(arrayTemp)/sizeof(MyTemp));
+  aLen =sizeof(arrayTemp)/sizeof(MyTemp);
 }
 void loop()
 {
   long tt = millis() / 1000;
   // word h = t / 3600;
- // byte mm = (tt / 60) % 60;
+  // byte mm = (tt / 60) % 60;
   byte ss = tt % 60;
 
   if ((ss >= 0 and ss < 30 and vOffset % 2 == 0)
       or (ss >= 30 and vOffset % 2 != 0))
   {
-    storeTemp();
+   
     Serial.print(ss); Serial.print(" sek ");
-    Serial.print(vOffset);Serial.println(" offset");
-   vOffset += 1;
-    if (vOffset > aLen) {
+    Serial.print(vOffset); Serial.println(" offset");
+    storeTemp();
+    vOffset ++;
+    if (vOffset >= aLen) {
       vOffset = 0;
-    }   
+    }
   }
 
   word len = ether.packetReceive();
@@ -149,10 +154,10 @@ void loop()
       ether.httpServerReply(chartPage());//homePage()); // send web page data
     }
     /*else if (strstr(data, "setup=setup"))
-    {
+      {
       Serial.println(data);
       ether.httpServerReply(setupPage());//homePage()); // send web page data
-    }*/
+      }*/
     else if (strstr(data, "main=main"))
     {
       Serial.println(data);
@@ -205,12 +210,47 @@ static word chartPage() {
                  //",[0, 8, 8, 8, 8],"
                  //  ",[22, 7, 8, 10, 20]"
                ), okHeader);
-  readStore();
-  
-  const char *str2 = vData.c_str();
-  Serial.println(vData);
-  Serial.println(*str2);
-  bfill.emit_p(PSTR("$S"), str2);
+  //readStore();
+  element[0] = ',';
+  element[1] = '[';
+
+  Serial.println(element);
+
+  for (int i = 0; i < aLen; i++) {
+    element[2] = 0;
+    x[0] = 0;
+    dtostrf(i, strlen(x)/*Полная_длина_строки*/, 0/*Количество_символов_после_запятой*/, x);
+    strcat(element, x);
+    strcat(element, ",");
+
+    fl = arrayTemp[i].tdom / 10.0;
+    dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+    strcat(element, x);
+    strcat(element, ",");
+    //  Serial.println(element);
+    fl = arrayTemp[i].tdvor / 10.0;
+    dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+    strcat(element, x);
+    strcat(element, ",");
+    //   Serial.println(element);
+    fl = arrayTemp[i].troof / 10.0;
+    dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+    strcat(element, x);
+    strcat(element, ",");
+    //   Serial.println(element);
+    fl = arrayTemp[i].tbuild / 10.0;
+    dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+    strcat(element, x);
+    strcat(element, "]");
+    Serial.println(element);
+    //
+    bfill.emit_p(PSTR("$S"), element);
+  }
+
+  //  const char *str2 = vData.c_str();
+  //  Serial.println(vData);
+  //  Serial.println(*str2);
+  // bfill.emit_p(PSTR("$S"), str2);
   /*  "[0, 8, 8, 8, 8],"
     "[5, 8.5, 6.6, 5, 6],"
     "[7.5, -7, 5, 6.4, 7],"
@@ -234,12 +274,12 @@ static word chartPage() {
                  "<div id='chart_div' style='width: 900px; height: 500px;'></div>"
                  "$F"
                ), http_Button, http_End);
- // readStore();
- // Serial.println(vData);
+  // readStore();
+  // Serial.println(vData);
   return bfill.position();
 }
 /*
-static word svgPage() {
+  static word svgPage() {
   bfill = ether.tcpOffset();
   bfill.emit_p(PSTR(
                  "$F"
@@ -254,9 +294,9 @@ static word svgPage() {
 
 
   return bfill.position();
-}*/
+  }*/
 /*
-static word setupPage() {
+  static word setupPage() {
   bfill = ether.tcpOffset();
   bfill.emit_p(PSTR(
                  "$F"
@@ -270,7 +310,7 @@ static word setupPage() {
 
 
   return bfill.position();
-}
+  }
 */
 static word errorPage() {
   bfill = ether.tcpOffset();
@@ -298,7 +338,7 @@ static word homePage() {
                  "$F"
                ),
                okHeader
-         , http_Header,
+               , http_Header,
                h / 10, h % 10, m / 10, m % 10, s / 10, s % 10
                , http_Button
               );
@@ -324,7 +364,7 @@ static word homePage() {
 }
 
 void storeTemp() {
-  Serial.println(vOffset);
+ // Serial.println(vOffset);
   arrayTemp[vOffset].tdom = analogRead(A0);
   arrayTemp[vOffset].tdvor = analogRead(A1);
   arrayTemp[vOffset].troof = analogRead(A2);
@@ -333,28 +373,28 @@ void storeTemp() {
 }
 
 void readStore() {
- // MyTemp mt;
-  vData = "";
-  
+  // MyTemp mt;
+  //  vData = "";
+
   for (int i = 0 ; i < aLen; i++) {
-   // EEPROM.get(i * 8, mt);
-  // mt.tdom =  arrayTemp[i].tdom//;
+    // EEPROM.get(i * 8, mt);
+    // mt.tdom =  arrayTemp[i].tdom//;
     //   if (mt.tdom == -1) break;
     //  (i!=0)
-    vData.concat(",[");    
-    vData.concat(i);
-    vData.concat(",");
-    vData.concat(arrayTemp[i].tdom / 10.0);
-    vData.concat(",");
-    vData.concat(arrayTemp[i].tdvor / 10.0);
-    vData.concat(",");
-    vData.concat(arrayTemp[i].troof / 10.0);
-    vData.concat(",");
-    vData.concat(arrayTemp[i].tbuild / 10.0);
-    vData.concat("]");
+    /* vData.concat(",[");
+      vData.concat(i);
+      vData.concat(",");
+      vData.concat(arrayTemp[i].tdom / 10.0);
+      vData.concat(",");
+      vData.concat(arrayTemp[i].tdvor / 10.0);
+      vData.concat(",");
+      vData.concat(arrayTemp[i].troof / 10.0);
+      vData.concat(",");
+      vData.concat(arrayTemp[i].tbuild / 10.0);
+      vData.concat("]");*/
   }
- // vData += "\0";
- Serial.println(vData);
+
+  //Serial.println(vData);
   return ;
 
 }
