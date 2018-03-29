@@ -2,6 +2,11 @@
 //#include <EEPROM.h>
 #include <OneWire.h>
 
+// Переменные, создаваемые процессом сборки,
+// когда компилируется скетч
+extern int __bss_end;
+extern void *__brkval;
+
 
 byte subnet[] = { 255, 255, 0, 0 };
 byte mac[] = { 0x74, 0x69, 0x69, 0x2D, 0x30, 0x31 };
@@ -15,8 +20,8 @@ float fl;
 
 const char okHeader[] PROGMEM =
   "HTTP/1.0 200 OK\r\n"
-  "Content-Type: text/html; charset=utf-8\r\n"
-  "Pragma: no-cache\r\n\r\n"
+  "Content-Type: text/html;charset=utf-8\r\n"
+  "Pragma:no-cache\r\n\r\n"
   ;
 const char okError[] PROGMEM =
   "HTTP/1.1 404 Not Found\r\n\r\n"
@@ -27,7 +32,7 @@ const char okError[] PROGMEM =
   "Location: /\r\n\r\n"
   ;*/
 const char http_Button[] PROGMEM =
-  // "<input type='submit' name='setup' value='setup'>"
+//  "<input type='submit' name='setup' value='setup'>"
   "<input type='submit' name='main' value='main'>"
   "<input type='submit' name='svg' value='svg'>"
   "<br>\r\n"
@@ -106,8 +111,9 @@ void setup()
 //  Serial.println(sizeof(arrayTemp)/sizeof(MyTemp));
   aLen =sizeof(arrayTemp)/sizeof(MyTemp);
 }
+
 void loop()
-{
+{ 
   long tt = millis() / 1000;
   // word h = t / 3600;
   // byte mm = (tt / 60) % 60;
@@ -128,9 +134,11 @@ void loop()
 
   word len = ether.packetReceive();
   word pos = ether.packetLoop(len);
-
   if (pos)  // check if valid tcp data is received
   {
+    Serial.print(memoryFree());
+    Serial.println(" byte?");          
+
     char* data = (char *) Ethernet::buffer + pos;
 
     // Serial.println(data);
@@ -190,6 +198,7 @@ void loop()
       ether.httpServerReply(homePage()); // send web page data
     }
 
+  
   }
 }
 static word chartPage() {
@@ -198,14 +207,14 @@ static word chartPage() {
                  "$F"
                  "<html>"
                  "<head>"
-                 "<link rel='icon' type='image/ico' href='https://www.arduino.cc/favicon.ico' type='image/x-icon' />"
+                 "<link rel='icon' type='image/ico' href='https://www.arduino.cc/favicon.ico' type='image/x-icon'/>"
                  "<meta charset='utf-8'>"
                  "<script type='text/javascript' src='https://www.gstatic.com/charts/loader.js'></script>"
                  "<script type='text/javascript'>"
-                 "google.charts.load('current', {packages:['corechart']});"
+                 "google.charts.load('current',{packages:['corechart']});"
                  "google.charts.setOnLoadCallback(drawChart);"
-                 "function drawChart() {"
-                 "var data = google.visualization.arrayToDataTable"
+                 "function drawChart(){"
+                 "var data=google.visualization.arrayToDataTable"
                  "([['X','дом','улица','чердак','бытовка']"
                  //",[0, 8, 8, 8, 8],"
                  //  ",[22, 7, 8, 10, 20]"
@@ -242,10 +251,34 @@ static word chartPage() {
     dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
     strcat(element, x);
     strcat(element, "]");
-    Serial.println(element);
+ //   Serial.println(element);
     //
     bfill.emit_p(PSTR("$S"), element);
   }
+
+    for (int i = 0; i < aLen; i++) {
+      Serial.print(",[");
+      Serial.print(i);
+      fl = arrayTemp[i].tdom / 10.0;
+      dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+      Serial.print(',');
+      Serial.print(x);
+      fl = arrayTemp[i].tdvor / 10.0;
+      dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+      Serial.print(',');
+      Serial.print(x);
+      fl = arrayTemp[i].troof / 10.0;
+      dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+      Serial.print(',');
+      Serial.print(x);
+      fl = arrayTemp[i].tbuild / 10.0;
+      dtostrf(fl, strlen(x)/*Полная_длина_строки*/, 1/*Количество_символов_после_запятой*/, x);
+      Serial.print(',');
+      Serial.print(x);
+      Serial.println("]");
+      
+      
+    }
 
   //  const char *str2 = vData.c_str();
   //  Serial.println(vData);
@@ -260,10 +293,10 @@ static word chartPage() {
     "[24, 7, 8, 10, 20]"*/
   bfill.emit_p(PSTR(
                  "]);"
-                 "var options = {"
+                 "var options={"
                  "};"
                  "var chart=new google.visualization.LineChart(document.getElementById('chart_div'));"
-                 "chart.draw(data, options);"
+                 "chart.draw(data,options);"
                  "}"
                  "</script>"
                  "</head>"
@@ -271,32 +304,22 @@ static word chartPage() {
                  "<form action='' method='post'>"
                  "<h1>Страничка графика</h1>"
                  "$F"
-                 "<div id='chart_div' style='width: 900px; height: 500px;'></div>"
+                 "<div id='chart_div' style='width:900px;height:500px;'></div>"
                  "$F"
                ), http_Button, http_End);
   // readStore();
   // Serial.println(vData);
+  //Serial.print(memoryFree()); // печать количества свободной оперативной памяти
+  //Serial.println(" byte?");          // печать пробела
+
+
   return bfill.position();
+
+
 }
-/*
-  static word svgPage() {
-  bfill = ether.tcpOffset();
-  bfill.emit_p(PSTR(
-                 "$F"
-                 "$F"
-                 "<form action='' method='post'>"
-                 "<h1>Страничка SVG</h1>"
-                 "$F"
-                 "<svg><line x1='0' y1='0' x2='100' y2='100' stroke-width='2' stroke='rgb(0,0,0)'/></svg>"
-                 "$F"
-               ),
-               okHeader, http_Header, http_Button, http_End); //http_Found);//
 
 
-  return bfill.position();
-  }*/
-/*
-  static word setupPage() {
+/*  static word setupPage() {
   bfill = ether.tcpOffset();
   bfill.emit_p(PSTR(
                  "$F"
@@ -365,10 +388,10 @@ static word homePage() {
 
 void storeTemp() {
  // Serial.println(vOffset);
-  arrayTemp[vOffset].tdom = analogRead(A0);
-  arrayTemp[vOffset].tdvor = analogRead(A1);
-  arrayTemp[vOffset].troof = analogRead(A2);
-  arrayTemp[vOffset].tbuild = analogRead(A3);
+  arrayTemp[vOffset].tdom = analogRead(A0)-400;
+  arrayTemp[vOffset].tdvor = analogRead(A1)-400;
+  arrayTemp[vOffset].troof = analogRead(A2)-400;
+  arrayTemp[vOffset].tbuild = analogRead(A3)-400;
   //EEPROM.put(vOffset, my_temp);
 }
 
@@ -399,4 +422,14 @@ void readStore() {
 
 }
 
+// Функция, возвращающая количество свободного ОЗУ (RAM)
+int memoryFree()
+{
+   int freeValue;
+   if((int)__brkval == 0)
+      freeValue = ((int)&freeValue) - ((int)&__bss_end);
+   else
+      freeValue = ((int)&freeValue) - ((int)__brkval);
+   return freeValue;
+}
 
